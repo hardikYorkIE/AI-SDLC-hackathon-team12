@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { access, readFile, readlink, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createJiraTasks, jiraStatus, saveJiraConfig, withJiraLock } from "./lib/jira.mjs";
+import { enqueueJiraTasks, jiraStatus, readJiraJob, withJiraLock } from "./lib/jira.mjs";
 import { listRuns } from "./lib/runs.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -303,22 +303,19 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "GET" && pathname === "/api/jira/status") {
-      sendJson(res, 200, await jiraStatus(ROOT));
+    const jiraJobMatch = pathname.match(/^\/api\/jira\/jobs\/([0-9a-f-]{36})$/i);
+    if (req.method === "GET" && jiraJobMatch) {
+      const job = await readJiraJob(ROOT, jiraJobMatch[1]);
+      if (!job) {
+        sendJson(res, 200, { done: false });
+        return;
+      }
+      sendJson(res, 200, { done: true, results: job.results || [], error: job.error || null });
       return;
     }
 
-    if (req.method === "POST" && pathname === "/api/jira/config") {
-      const raw = await readBody(req);
-      let body = {};
-      try {
-        body = JSON.parse(raw || "{}");
-      } catch {
-        sendJson(res, 400, { error: "Send a JSON body with the Jira site, email, token, and project key." });
-        return;
-      }
-      const saved = await saveJiraConfig(ROOT, body);
-      sendJson(res, 200, saved);
+    if (req.method === "GET" && pathname === "/api/jira/status") {
+      sendJson(res, 200, jiraStatus());
       return;
     }
 
@@ -355,14 +352,14 @@ const server = createServer(async (req, res) => {
       }
       try {
         const payload = await withJiraLock(() =>
-          createJiraTasks(
+          enqueueJiraTasks(
             ROOT,
             runDir,
             report,
             indexes.map((index) => ({ index, issue: issues[index] }))
           )
         );
-        sendJson(res, 200, payload);
+        sendJson(res, 202, payload);
       } catch (err) {
         sendJson(res, err.status || 502, {
           error: err.message || "Could not create Jira tasks.",

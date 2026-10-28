@@ -320,15 +320,6 @@ async function main() {
         <button type="button" id="jiraCreate" disabled>Create Jira tasks</button>
         <span id="jiraStatus" class="jira-status muted"></span>
       </div>
-      <form class="jira-setup" id="jiraSetup" hidden>
-        <p class="muted">Connect the Jira site once. The token stays on this machine.</p>
-        <label>Site <input name="baseUrl" type="url" required placeholder="https://your-site.atlassian.net" /></label>
-        <label>Email <input name="email" type="email" required autocomplete="username" placeholder="you@example.com" /></label>
-        <label>API token <input name="apiToken" type="password" required autocomplete="off" /></label>
-        <label>Project key <input name="projectKey" required placeholder="UX" /></label>
-        <label>Issue type <input name="issueType" value="Task" /></label>
-        <button type="submit">Save Jira connection</button>
-      </form>
       <div class="tabs">
         <button type="button" class="tab-all active" data-cat="__all">All</button>
         ${filterTabs}
@@ -379,7 +370,6 @@ async function main() {
     const jiraCreate = document.getElementById('jiraCreate');
     const jiraCount = document.getElementById('jiraCount');
     const jiraStatus = document.getElementById('jiraStatus');
-    const jiraSetup = document.getElementById('jiraSetup');
     const selectedBoxes = () => [...document.querySelectorAll('.jira-pick')].filter((box) => box.checked && !box.disabled);
     const updateCount = () => {
       const n = selectedBoxes().length;
@@ -417,43 +407,16 @@ async function main() {
         updateCount();
       });
       document.querySelectorAll('.jira-pick').forEach((box) => box.addEventListener('change', updateCount));
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       fetch('/api/jira/status').then((res) => res.json()).then((status) => {
-        if (status.configured) {
-          jiraStatus.textContent = 'Jira ' + status.projectKey + ' on ' + status.site + '. Each selected finding becomes its own task.';
+        if (status.configured && status.projectKey) {
+          const name = status.projectName ? status.projectName + ' (' + status.projectKey + ')' : status.projectKey;
+          jiraStatus.textContent = 'Jira ' + name + ' on ' + status.site + '. Each selected finding becomes its own task.';
         } else {
-          jiraSetup.hidden = false;
-          jiraStatus.textContent = 'Connect Jira once, then select findings and create tasks.';
+          jiraStatus.textContent = 'Jira is unavailable from this page.';
         }
       }).catch(() => {
         jiraStatus.textContent = 'Jira is unavailable from this page.';
-      });
-      jiraSetup.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const button = jiraSetup.querySelector('button');
-        button.disabled = true;
-        jiraStatus.textContent = 'Checking Jira…';
-        try {
-          const res = await fetch('/api/jira/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              baseUrl: jiraSetup.baseUrl.value.trim(),
-              email: jiraSetup.email.value.trim(),
-              apiToken: jiraSetup.apiToken.value,
-              projectKey: jiraSetup.projectKey.value.trim(),
-              issueType: jiraSetup.issueType.value.trim() || 'Task',
-            }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Could not connect to Jira.');
-          jiraSetup.hidden = true;
-          jiraSetup.reset();
-          jiraStatus.textContent = 'Connected to ' + data.projectKey + ' on ' + data.site + '. Each selected finding becomes its own task.';
-        } catch (err) {
-          jiraStatus.textContent = err.message;
-        } finally {
-          button.disabled = false;
-        }
       });
       jiraCreate.addEventListener('click', async () => {
         const boxes = selectedBoxes();
@@ -477,10 +440,30 @@ async function main() {
             });
             const data = await res.json();
             applyResults(data.results);
-            if (!res.ok) throw new Error(data.error || 'Could not create Jira tasks.');
+            if (!res.ok && res.status !== 202) throw new Error(data.error || 'Could not create Jira tasks.');
             for (const row of data.results || []) {
               if (row.created) created.push(row.key);
               else existing.push(row.key);
+            }
+            if (data.jobId) {
+              const deadline = Date.now() + 180000;
+              let filed = null;
+              while (Date.now() < deadline) {
+                await wait(1000);
+                const jobRes = await fetch('/api/jira/jobs/' + data.jobId);
+                const job = await jobRes.json();
+                if (!job.done) continue;
+                filed = job;
+                break;
+              }
+              if (!filed) throw new Error('Jira is still creating these tasks. Refresh the report in a moment.');
+              applyResults(filed.results);
+              if (filed.error && !(filed.results || []).length) throw new Error(filed.error);
+              for (const row of filed.results || []) {
+                if (row.created) created.push(row.key);
+                else if (row.key) existing.push(row.key);
+              }
+              if (filed.error) throw new Error(filed.error);
             }
           }
           const parts = [];

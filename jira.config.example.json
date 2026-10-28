@@ -1,7 +1,0 @@
-{
-  "baseUrl": "https://your-site.atlassian.net",
-  "email": "you@example.com",
-  "apiToken": "REPLACE_ME",
-  "projectKey": "UX",
-  "issueType": "Task"
-}
