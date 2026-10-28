@@ -1,0 +1,23 @@
+{
+  "name": "ai-sdlc-hackathon-team12",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UI/UX audit harness for a vibe-coded product",
+  "type": "module",
+  "scripts": {
+    "serve": "npx --yes serve . -l 8765",
+    "audit": "node scripts/audit.mjs",
+    "remediate": "node scripts/remediate.mjs",
+    "audit-after": "node scripts/audit-after.mjs",
+    "audit:full": "node scripts/audit-full.mjs",
+    "report": "node scripts/report.mjs",
+    "audit-gate": "node scripts/audit-gate.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "playwright": "^1.51.0"
+  }
+}

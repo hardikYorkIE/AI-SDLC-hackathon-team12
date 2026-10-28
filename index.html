@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>York IE Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --background: oklch(98.5% 0 0);
+      --foreground: oklch(14.5% 0 0);
+      --card: oklch(100% 0 0);
+      --card-foreground: oklch(14.5% 0 0);
+      --muted: oklch(96.1% 0 0);
+      --muted-foreground: oklch(45.2% 0 0);
+      --border: oklch(0% 0 0 / 0.1);
+      --primary: oklch(68.43% 0.136873 169.071);
+      --primary-foreground: oklch(14.5% 0 0);
+      --accent: oklch(96.1% 0 0);
+      --destructive: oklch(63.7% 0.237 25.331);
+      --destructive-foreground: oklch(98.5% 0 0);
+      --radius: 12px;
+      --sidebar: 56px;
+      --font: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    html.dark {
+      --background: oklch(14.5% 0 0);
+      --foreground: oklch(98.5% 0 0);
+      --card: oklch(20.5% 0 0);
+      --card-foreground: oklch(98.5% 0 0);
+      --muted: oklch(26.9% 0 0);
+      --muted-foreground: oklch(70.8% 0 0);
+      --border: oklch(100% 0 0 / 0.1);
+      --accent: oklch(26.9% 0 0);
+      --destructive: oklch(70.4% 0.191 22.216);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    button, input { font-family: inherit; }
+
+    a { color: inherit; text-decoration: none; }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: var(--sidebar);
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background: var(--background);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 4px 10px;
+      gap: 8px;
+      z-index: 20;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      margin-top: 4px;
+    }
+
+    .logo svg { width: 22px; height: 22px; }
+
+    .nav {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding-bottom: 8px;
+    }
+
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .nav-group:first-child { margin-top: 4px; }
+
+    .nav-btn {
+      width: 40px;
+      height: 40px;
+      border: 0;
+      background: transparent;
+      color: var(--foreground);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: background 150ms ease, color 150ms ease;
+    }
+
+    .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .nav-btn:hover { background: var(--accent); }
+
+    .nav-btn.active {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #3a3a3a, #1f1f1f);
+      color: #eee;
+      font-size: 11px;
+      font-weight: 700;
+      border: 2px solid color-mix(in oklab, var(--border), transparent 40%);
+      box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+    }
+
+    html:not(.dark) .avatar {
+      background: linear-gradient(135deg, #d4d4d4, #a3a3a3);
+      color: #171717;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 24px 8px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: color-mix(in oklab, var(--background) 86%, transparent);
+      backdrop-filter: blur(16px);
+    }
+
+    .search {
+      flex: 1;
+      max-width: 420px;
+      height: 44px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in oklab, var(--border), transparent 40%);
+      background: color-mix(in oklab, var(--card) 80%, transparent);
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      cursor: text;
+    }
+
+    .search input {
+      flex: 1;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--foreground);
+      font-size: 14px;
+    }
+
+    .search kbd {
+      font-size: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 7px;
+      color: var(--muted-foreground);
+      background: color-mix(in oklab, var(--muted) 50%, transparent);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      border: 0;
+      background: var(--muted);
+      color: var(--foreground);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      position: relative;
+      transition: transform 150ms ease, background 150ms ease;
+    }
+
+    .icon-btn:hover { background: var(--accent); transform: scale(0.96); }
+
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .coin-btn {
+      width: auto;
+      min-width: 40px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .coin-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #f6e27a, #c9a227);
+      box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.2);
+    }
+
+    .badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--destructive);
+      color: var(--destructive-foreground);
+      font-size: 11px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--background);
+    }
+
+    .bell-icon { color: var(--primary); }
+
+    .page {
+      position: relative;
+      padding: 8px 24px 40px;
+    }
+
+    .blobs {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(64px);
+      background: color-mix(in oklab, var(--primary) 20%, transparent);
+    }
+
+    .blob.a { width: 256px; height: 256px; left: 80px; top: 80px; }
+    .blob.b { width: 192px; height: 192px; right: 40px; top: 25%; background: color-mix(in oklab, var(--primary) 15%, transparent); }
+    .blob.c { width: 224px; height: 224px; left: 45%; top: -20px; background: color-mix(in oklab, var(--primary) 12%, transparent); }
+
+    .hero {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px 0 18px;
+    }
+
+    .hero h1 {
+      font-size: 36px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin-top: 8px;
+      color: var(--muted-foreground);
+      font-weight: 400;
+    }
+
+    .ghost {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid color-mix(in oklab, var(--primary) 25%, transparent);
+      background: transparent;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .ghost:hover { background: color-mix(in oklab, var(--primary) 10%, transparent); }
+
+    .grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+      padding: 16px;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card.span-2 { grid-column: span 2; min-height: 220px; }
+    .card.compact { min-height: 180px; }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .tile {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: color-mix(in oklab, var(--primary) 10%, transparent);
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .tile svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .icon-link {
+      width: 32px;
+      height: 32px;
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .icon-link:hover { background: var(--accent); }
+
+    .icon-link svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .announcement {
+      position: relative;
+      padding: 8px 0 14px 20px;
+    }
+
+    .announcement::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 10px;
+      width: 4px;
+      border-radius: 999px;
+      background: var(--primary);
+    }
+
+    .announcement h3 {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .chip:hover { background: color-mix(in oklab, var(--primary) 10%, transparent); }
+
+    .day-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      background: color-mix(in oklab, var(--muted) 30%, transparent);
+      border-radius: 10px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+
+    .day-nav button {
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      cursor: pointer;
+      width: 22px;
+      height: 22px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .tab {
+      border: 0;
+      background: var(--muted);
+      color: var(--muted-foreground);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+
+    .meeting {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in oklab, var(--muted) 25%, transparent);
+    }
+
+    .meeting-meta { display: flex; gap: 10px; align-items: flex-start; }
+
+    .open-btn {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--foreground);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .news-item {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .news-item:last-child { border-bottom: 0; }
+
+    .news-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 10px;
+      background: color-mix(in oklab, var(--primary) 12%, transparent);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+    }
+
+    .source {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .news-item h3 { font-size: 15px; font-weight: 600; }
+    .news-item p { color: var(--muted-foreground); font-size: 13px; margin: 4px 0; }
+    .news-item time { color: var(--muted-foreground); font-size: 12px; }
+
+    .empty {
+      color: var(--muted-foreground);
+      font-size: 14px;
+      padding: 18px 4px;
+    }
+
+    .stat {
+      font-size: 42px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+    }
+
+    .people { display: flex; flex-direction: column; gap: 8px; }
+
+    .person {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f0b429;
+      flex-shrink: 0;
+    }
+
+    .dot.off { background: #ef4444; }
+
+    .kudo {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kudo:last-child { border-bottom: 0; }
+
+    .kudo h4 { font-size: 15px; }
+    .kudo .meta { color: var(--muted-foreground); font-size: 13px; margin-top: 2px; }
+
+    .cal {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .cal .dow { color: var(--muted-foreground); padding: 6px 0; font-weight: 600; }
+
+    .cal .day {
+      min-height: 42px;
+      border-radius: 8px;
+      padding: 6px 2px 4px;
+      color: var(--foreground);
+    }
+
+    .cal .day.muted { color: var(--muted-foreground); opacity: 0.45; }
+
+    .cal .day.today {
+      outline: 1px solid var(--primary);
+      background: color-mix(in oklab, var(--primary) 10%, transparent);
+    }
+
+    .count {
+      display: inline-block;
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--primary);
+    }
+
+    .profile-card h3 { font-size: 18px; margin-bottom: 2px; }
+    .skills { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+    .skill {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted-foreground);
+    }
+
+    .chat-box, .ask-box {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-box input, .ask-box input, .ask-box textarea {
+      flex: 1;
+      border: 1px solid var(--border);
+      background: var(--muted);
+      color: var(--foreground);
+      border-radius: 10px;
+      padding: 10px 12px;
+      outline: none;
+      resize: none;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--foreground);
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgb(0 0 0 / 0.3);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: 200ms ease;
+      z-index: 50;
+    }
+
+    .toast.show { opacity: 1; transform: none; }
+
+    .menu-btn { display: none; }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .card.span-2 { grid-column: span 1; }
+      .hero h1 { font-size: 28px; }
+      .search { max-width: none; }
+    }
+
+    @media (max-width: 720px) {
+      .sidebar { display: none; }
+      .sidebar.open {
+        display: flex;
+        position: fixed;
+        inset: 0 auto 0 0;
+        height: 100%;
+      }
+      .menu-btn { display: grid; }
+      .topbar, .page { padding-left: 12px; padding-right: 12px; }
+      .hero { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo" aria-label="York IE">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2.2 4.4 6.6v10.8L12 21.8l7.6-4.4V6.6L12 2.2Z" stroke="#5ec9a8" stroke-width="1.5"/>
+          <path d="M12 2.2v19.6M4.4 6.6 12 11l7.6-4.4" stroke="#5ec9a8" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <nav class="nav" aria-label="Primary">
+        <div class="nav-group">
+          <button class="nav-btn active" title="Home" aria-current="page">
+            <svg viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          </button>
+          <button class="nav-btn" title="Timesheet">
+            <svg viewBox="0 0 24 24"><path d="M16 14v2.2l1.6 1"/><path d="M16 2v4"/><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M3 10h5"/><path d="M8 2v4"/><circle cx="16" cy="16" r="6"/></svg>
+          </button>
+          <button class="nav-btn" title="Leave & WFH">
+            <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+          </button>
+          <button class="nav-btn" title="MBO">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          </button>
+        </div>
+        <div class="nav-group">
+          <button class="nav-btn" title="Business Network">
+            <svg viewBox="0 0 24 24"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9 2.5-5h13L21 9"/></svg>
+          </button>
+          <button class="nav-btn" title="Employees">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg>
+          </button>
+          <button class="nav-btn" title="Organization">
+            <svg viewBox="0 0 24 24"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8"/></svg>
+          </button>
+          <button class="nav-btn" title="Guilds">
+            <svg viewBox="0 0 24 24"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></svg>
+          </button>
+          <button class="nav-btn" title="Kudos">
+            <svg viewBox="0 0 24 24"><path d="m12 2 2.4 6.9H21l-5.4 3.9 2.1 6.7L12 15.8 6.3 19.5l2.1-6.7L3 8.9h6.6z"/></svg>
+          </button>
+          <button class="nav-btn" title="People Corner">
+            <svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          </button>
+        </div>
+        <div class="nav-group">
+          <button class="nav-btn" title="Link Vault">
+            <svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
+          </button>
+          <button class="nav-btn" title="AI Skills Library">
+            <svg viewBox="0 0 24 24"><path d="m12 3 1.9 5.6L20 10.5l-5.2 2 1.7 5.7L12 15.4 7.5 18.2 9.2 12.5 4 10.5l6.1-1.9z"/></svg>
+          </button>
+          <button class="nav-btn" title="Hub Requests">
+            <svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/></svg>
+          </button>
+          <button class="nav-btn" title="Surveys">
+            <svg viewBox="0 0 24 24"><path d="M14 2v6h6"/><path d="M4 22V4a2 2 0 0 1 2-2h8l6 6v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>
+          </button>
+          <button class="nav-btn" title="Initiatives">
+            <svg viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
+          </button>
+        </div>
+      </nav>
+      <div class="avatar" title="Hardik Savaliya">HS</div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open sidebar">
+          <svg viewBox="0 0 24 24"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
+        </button>
+        <label class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="search" type="search" placeholder="Search people or projects…" />
+          <kbd>⌘/</kbd>
+        </label>
+        <div class="top-actions">
+          <button class="icon-btn coin-btn" aria-label="Explore store">
+            <span>50,000</span>
+            <span class="coin-dot"></span>
+          </button>
+          <button class="icon-btn" aria-label="Help">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          </button>
+          <button class="icon-btn" id="themeBtn" aria-label="Theme toggle">
+            <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button class="icon-btn" aria-label="Notifications (2 unread)">
+            <svg class="bell-icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span class="badge">2</span>
+          </button>
+          <button class="icon-btn" aria-label="Applications">
+            <svg viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="page">
+        <div class="blobs" aria-hidden="true">
+          <div class="blob a"></div>
+          <div class="blob b"></div>
+          <div class="blob c"></div>
+        </div>
+
+        <section class="hero">
+          <div>
+            <h1 id="greeting">Good Afternoon, Hardik</h1>
+            <p>Clean code, clear mind, confident day.</p>
+          </div>
+          <button class="ghost" id="personalize">Personalize home</button>
+        </section>
+
+        <section class="grid">
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M15 9.34V4"/></svg></span>
+                Announcements
+              </div>
+              <button class="icon-link" aria-label="History"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></button>
+            </div>
+            <div class="announcement">
+              <h3>GrowthOS is Now Generally Available</h3>
+              <div class="chips">
+                <span class="chip">👏 22</span>
+                <span class="chip">🙌 8</span>
+              </div>
+            </div>
+            <div class="announcement">
+              <h3>SOC 2 Compliance: Workplace Security &amp; Floor Guidelines, Effective 14 Oct (Today)</h3>
+              <div class="chips">
+                <span class="chip">👍 63</span>
+                <span class="chip">🙌 2</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span>
+                Schedule &amp; Rooms
+              </div>
+              <div class="day-nav">
+                <button aria-label="Previous day">‹</button>
+                <span>28th Oct</span>
+                <button aria-label="Next day">›</button>
+              </div>
+            </div>
+            <div class="tabs">
+              <button class="tab active" data-tab="schedule">Schedule</button>
+              <button class="tab" data-tab="rooms">Rooms</button>
+            </div>
+            <div id="schedulePane">
+              <div class="meeting">
+                <div class="meeting-meta">
+                  <span class="tile" style="width:32px;height:32px"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg></span>
+                  <div>
+                    <strong>Busy</strong>
+                    <div class="meta" style="color:var(--muted-foreground);font-size:13px">1:30 PM – 2:30 PM</div>
+                  </div>
+                </div>
+                <button class="open-btn">Open</button>
+              </div>
+            </div>
+            <div id="roomsPane" hidden>
+              <p class="empty">No rooms booked for this day.</p>
+            </div>
+          </article>
+
+          <article class="card span-2">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg></span>
+                AI &amp; tech news
+              </div>
+              <button class="open-btn" id="refreshNews">↻ Refresh</button>
+            </div>
+            <div class="news-item">
+              <div class="news-thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+              <div>
+                <span class="source">TECHCRUNCH AI</span>
+                <h3>VCs will make billions on Anthropic’s IPO, but Amazon is set to make much (much) more</h3>
+                <p>Massive note conversions reveal the true extent of Amazon's ownership in Anthropic.</p>
+                <time>9 hours ago</time>
+              </div>
+            </div>
+            <div class="news-item">
+              <div class="news-thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+              <div>
+                <span class="source">TECHCRUNCH AI</span>
+                <h3>The data center boom has an upside: innovation for the US grid</h3>
+                <p>As the AI boom stresses the existing power grid, new opportunities for grid modernization are emerging.</p>
+                <time>11 hours ago</time>
+              </div>
+            </div>
+          </article>
+
+          <article class="card compact">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+                Draft Timesheets
+              </div>
+            </div>
+            <div class="stat">0</div>
+            <p class="empty">No draft timesheets to submit.</p>
+          </article>
+
+          <article class="card compact">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                Team Status
+              </div>
+              <span style="color:var(--muted-foreground);font-size:13px">28th Oct</span>
+            </div>
+            <div class="people">
+              <div class="person"><span class="dot"></span> Ankit Darji</div>
+              <div class="person"><span class="dot"></span> Kalpak Patel</div>
+              <div class="person"><span class="dot off"></span> Kaushal Modi</div>
+              <div class="person"><span class="dot"></span> Kunal Deore</div>
+              <div class="person"><span class="dot"></span> Meen Dave</div>
+            </div>
+          </article>
+
+          <article class="card compact">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+                New to the Team
+              </div>
+              <button class="ghost">Explore More</button>
+            </div>
+            <div class="people">
+              <div class="person"><span class="avatar" style="width:28px;height:28px;font-size:10px">SK</span> <div>Sandip Koshti<br><span style="color:var(--muted-foreground);font-size:12px">Joined 3 weeks ago</span></div></div>
+              <div class="person"><span class="avatar" style="width:28px;height:28px;font-size:10px">RB</span> <div>Rinkal Binwani<br><span style="color:var(--muted-foreground);font-size:12px">Joined 1 month ago</span></div></div>
+              <div class="person"><span class="avatar" style="width:28px;height:28px;font-size:10px">VT</span> <div>Vaishnavi Thakur<br><span style="color:var(--muted-foreground);font-size:12px">Joined 1 month ago</span></div></div>
+            </div>
+          </article>
+
+          <article class="card compact">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></span>
+                Celebrate a Teammate
+              </div>
+            </div>
+            <p class="empty">Events this month (28)</p>
+            <div class="meeting">
+              <strong>Akshat Parekh</strong>
+              <button class="ghost">Send wish</button>
+            </div>
+          </article>
+
+          <article class="card span-2">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="m12 2 2.4 6.9H21l-5.4 3.9 2.1 6.7L12 15.8 6.3 19.5l2.1-6.7L3 8.9h6.6z"/></svg></span>
+                Internal Kudos Board
+              </div>
+              <button class="ghost">Give Kudos</button>
+            </div>
+            <div class="kudo">
+              <div>
+                <h4>Kalpin Gajjar</h4>
+                <div class="meta">22nd Oct 2026 · Teamwork · from Vatsal Mewada</div>
+              </div>
+              <span class="chip">🎉 49</span>
+            </div>
+            <div class="kudo">
+              <div>
+                <h4>Kishan Aghera</h4>
+                <div class="meta">22nd Oct 2026 · Teamwork · from Vatsal Mewada</div>
+              </div>
+              <span class="chip">🎉 51</span>
+            </div>
+            <div class="kudo">
+              <div>
+                <h4>Rachna Vyas</h4>
+                <div class="meta">22nd Oct 2026 · Going Above and Beyond · from Ajay Datta</div>
+              </div>
+              <span class="chip">🎉 44</span>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+                People at York IE
+              </div>
+              <button class="ghost">Show Another</button>
+            </div>
+            <div class="profile-card">
+              <h3>Parth Rana</h3>
+              <p style="color:var(--muted-foreground)">Senior Engineer · 5 years of experience</p>
+              <div class="skills">
+                <span class="skill">.Net MVC</span>
+                <span class="skill">TypeScript</span>
+                <span class="skill">React Native</span>
+                <span class="skill">C#</span>
+              </div>
+              <p>Mobile Application Developer with 5+ years of experience building scalable, high-performance cross-platform applications.</p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span>
+                Leave &amp; WFH calendar
+              </div>
+              <span style="color:var(--muted-foreground);font-size:13px">October 2026</span>
+            </div>
+            <div class="cal" id="calendar"></div>
+          </article>
+
+          <article class="card compact">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg></span>
+                My Project Allocation
+              </div>
+            </div>
+            <p class="empty">No specific project assigned.</p>
+          </article>
+
+          <article class="card compact">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                MBO chat
+              </div>
+            </div>
+            <p style="font-size:13px;color:var(--muted-foreground);margin-bottom:10px">Q3 - FY2026-27 (Oct 2026 - Dec 2026)</p>
+            <p class="empty">No messages yet. When there is activity on your MBO discussion, the latest messages show here.</p>
+            <div class="chat-box">
+              <input placeholder="Add your comments here for easier MBO grading process" />
+              <button class="ghost">Open Chat</button>
+            </div>
+          </article>
+
+          <article class="card span-2 compact">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="tile"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+                Marketplace assistant
+              </div>
+            </div>
+            <p class="empty">Search trusted businesses shared by colleagues in Business Network.</p>
+            <div class="ask-box">
+              <input maxlength="300" placeholder="Ask about a vendor or service…" />
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Home layout saved.</div>
+
+  <script>
+    const hour = new Date().getHours();
+    const part = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
+    document.getElementById("greeting").textContent = "Good " + part + ", Hardik";
+
+    document.getElementById("themeBtn").addEventListener("click", () => {
+      document.documentElement.classList.toggle("dark");
+    });
+
+    document.getElementById("personalize").addEventListener("click", () => {
+      const toast = document.getElementById("toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1800);
+    });
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        const isRooms = tab.dataset.tab === "rooms";
+        document.getElementById("roomsPane").hidden = !isRooms;
+        document.getElementById("schedulePane").hidden = isRooms;
+      });
+    });
+
+    document.getElementById("menuBtn").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.toggle("open");
+    });
+
+    const cal = document.getElementById("calendar");
+    const labels = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+    labels.forEach((d) => {
+      const el = document.createElement("div");
+      el.className = "dow";
+      el.textContent = d;
+      cal.appendChild(el);
+    });
+    const counts = { 1: 45, 4: 4, 6: 5, 7: 5, 8: 4, 11: 4, 13: 2, 14: 2, 15: 5, 18: 8, 19: 13, 22: 3 };
+    for (let i = 0; i < 4; i++) {
+      const blank = document.createElement("div");
+      blank.className = "day muted";
+      cal.appendChild(blank);
+    }
+    for (let d = 1; d <= 31; d++) {
+      const el = document.createElement("div");
+      el.className = "day" + (d === 28 ? " today" : "");
+      el.innerHTML = d + (counts[d] ? '<div class="count">+' + counts[d] + "</div>" : "");
+      cal.appendChild(el);
+    }
+  </script>
+</body>
+</html>
