@@ -23,6 +23,7 @@ import {
   ensureAuthStorage,
   authLogSummary,
 } from "./lib/auth.mjs";
+import { beginRun } from "./lib/runs.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -30,9 +31,11 @@ const ROOT = path.resolve(__dirname, "..");
 async function main() {
   const argv = process.argv.slice(2);
   const { url, outDir } = parseArgs(argv);
+  const explicitOut = argv.some((arg) => arg.startsWith("--out="));
+  const run = explicitOut ? null : await beginRun(ROOT, url);
   const authCli = parseAuthCliFlags(argv, { targetUrl: url });
   const auth = await resolveAuth(authCli, { rootDir: ROOT });
-  const absOut = path.resolve(outDir);
+  const absOut = run ? run.dir : path.resolve(outDir);
   await mkdir(absOut, { recursive: true });
 
   const skillPath = path.join(ROOT, "audit_skill_file.md");
@@ -40,6 +43,7 @@ async function main() {
 
   console.log(`\n🔎 Before-audit with audit_skill_file.md`);
   console.log(`   URL: ${url}`);
+  console.log(`   Run: ${run ? `artifacts/${run.name}` : absOut}`);
   console.log(`   Auth: ${authLogSummary(auth)}`);
   console.log(`   Viewports: mobile / tablet / desktop`);
 

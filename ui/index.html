@@ -116,6 +116,16 @@
       font-size: 14px;
       word-break: break-all;
     }
+    #history-list {
+      list-style: none;
+      margin: 12px 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #history-list a { color: var(--accent); font-weight: 650; }
+    .history-meta { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
     .error {
       margin-top: 16px;
       padding: 12px 14px;
@@ -163,6 +173,12 @@
       <h2>Report</h2>
       <a id="report-link" class="report-link" href="/report" target="_blank" rel="noopener">Open report</a>
       <p id="report-url" class="report-url"></p>
+      <p id="run-folder" class="report-url"></p>
+    </section>
+
+    <section id="history" class="panel" hidden>
+      <h2>Past reports</h2>
+      <ul id="history-list"></ul>
     </section>
   </main>
   <script>
@@ -176,6 +192,9 @@
     const logEl = document.getElementById("log");
     const result = document.getElementById("result");
     const reportUrl = document.getElementById("report-url");
+    const runFolder = document.getElementById("run-folder");
+    const history = document.getElementById("history");
+    const historyList = document.getElementById("history-list");
 
     const phaseLabel = {
       starting: "Starting audit…",
@@ -203,9 +222,35 @@
       return new URL("/report", window.location.origin).href;
     }
 
-    function showReport() {
+    function showReport(runId) {
       result.hidden = false;
       reportUrl.textContent = absoluteReport();
+      runFolder.textContent = runId ? "Saved in artifacts/" + runId : "";
+    }
+
+    function renderHistory(runs) {
+      historyList.replaceChildren();
+      const ready = (runs || []).filter((run) => run.reportUrl);
+      history.hidden = ready.length === 0;
+      for (const run of ready) {
+        const li = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = run.reportUrl;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = run.url || run.id;
+        const meta = document.createElement("span");
+        meta.className = "history-meta";
+        meta.textContent = run.id;
+        li.append(link, meta);
+        historyList.append(li);
+      }
+    }
+
+    async function loadHistory() {
+      const res = await fetch("/api/history");
+      if (!res.ok) return;
+      renderHistory(await res.json());
     }
 
     async function refresh() {
@@ -221,7 +266,8 @@
         logEl.scrollTop = logEl.scrollHeight;
       }
       if (data.error && !busy) showError(data.error);
-      if (data.reportUrl && !busy) showReport();
+      if (data.reportUrl && !busy) showReport(data.runId);
+      if (!busy) await loadHistory();
       return busy;
     }
 

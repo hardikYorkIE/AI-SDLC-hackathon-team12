@@ -6,12 +6,15 @@
  */
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { access, readFile, stat } from "node:fs/promises";
+import { access, readFile, readlink, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createJiraTasks, jiraStatus, saveJiraConfig, withJiraLock } from "./lib/jira.mjs";
+import { listRuns } from "./lib/runs.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const ARTIFACTS = path.join(ROOT, "artifacts", "latest");
+const ARTIFACTS_ROOT = path.join(ROOT, "artifacts");
+const ARTIFACTS = path.join(ARTIFACTS_ROOT, "latest");
 const UI_HTML = path.join(ROOT, "ui", "index.html");
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.AUDIT_UI_PORT || 8787);
@@ -172,22 +175,68 @@ function contentType(file) {
   return "application/octet-stream";
 }
 
+const RUN_ID = /^(?:latest|\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_[a-z0-9][a-z0-9._-]*)$/;
+
 function artifactFile(urlPath) {
-  const prefix = "/artifacts/latest/";
-  if (!urlPath.startsWith(prefix)) return null;
+  const match = urlPath.match(/^\/artifacts\/([^/]+)\/(.+)$/);
+  if (!match || !RUN_ID.test(match[1])) return null;
   let rel;
   try {
-    rel = decodeURIComponent(urlPath.slice(prefix.length));
+    rel = decodeURIComponent(match[2]);
   } catch {
     return null;
   }
-  if (!rel || rel.includes("\0")) return null;
-  const abs = path.resolve(ARTIFACTS, rel);
-  const root = ARTIFACTS + path.sep;
-  if (abs !== ARTIFACTS && !abs.startsWith(root)) return null;
+  if (!rel || rel.includes("\0") || rel.split("/").some((part) => !part || part === "." || part === "..")) {
+    return null;
+  }
+  const runDir = path.resolve(ARTIFACTS_ROOT, match[1]);
+  const abs = path.resolve(runDir, rel);
+  const root = runDir + path.sep;
+  if (!abs.startsWith(root)) return null;
   if (path.basename(abs) === "auth-storage.json") return null;
   if (!/\.(html|png|jpe?g|webp|gif|css)$/i.test(abs)) return null;
   return abs;
+}
+
+async function insideArtifacts(file) {
+  const root = await realpath(ARTIFACTS_ROOT);
+  const abs = await realpath(file);
+  return abs === root || abs.startsWith(root + path.sep);
+}
+
+async function resolveRunDir(runId) {
+  const id = String(runId || "latest");
+  if (!RUN_ID.test(id)) {
+    const error = new Error("Unknown audit run.");
+    error.status = 400;
+    throw error;
+  }
+  const dir = path.resolve(ARTIFACTS_ROOT, id);
+  let root;
+  let abs;
+  try {
+    root = await realpath(ARTIFACTS_ROOT);
+    abs = await realpath(dir);
+  } catch {
+    const error = new Error("Unknown audit run.");
+    error.status = 404;
+    throw error;
+  }
+  if (abs !== root && !abs.startsWith(root + path.sep)) {
+    const error = new Error("Unknown audit run.");
+    error.status = 400;
+    throw error;
+  }
+  return abs;
+}
+
+async function currentRunId() {
+  try {
+    const target = await readlink(ARTIFACTS);
+    return path.basename(target);
+  } catch {
+    return null;
+  }
 }
 
 function readBody(req) {
@@ -244,7 +293,82 @@ const server = createServer(async (req, res) => {
         error: state.error,
         finishedAt: state.finishedAt,
         reportUrl: ready ? "/report" : null,
+        runId: await currentRunId(),
       });
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/history") {
+      sendJson(res, 200, await listRuns(ROOT));
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/jira/status") {
+      sendJson(res, 200, await jiraStatus(ROOT));
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/jira/config") {
+      const raw = await readBody(req);
+      let body = {};
+      try {
+        body = JSON.parse(raw || "{}");
+      } catch {
+        sendJson(res, 400, { error: "Send a JSON body with the Jira site, email, token, and project key." });
+        return;
+      }
+      const saved = await saveJiraConfig(ROOT, body);
+      sendJson(res, 200, saved);
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/jira/tasks") {
+      const raw = await readBody(req);
+      let body = {};
+      try {
+        body = JSON.parse(raw || "{}");
+      } catch {
+        sendJson(res, 400, { error: "Send a JSON body with the selected findings." });
+        return;
+      }
+      const runDir = await resolveRunDir(body.runId);
+      let report;
+      try {
+        report = JSON.parse(await readFile(path.join(runDir, "audit-report.json"), "utf8"));
+      } catch {
+        sendJson(res, 404, { error: "This run has no audit report." });
+        return;
+      }
+      const issues = report.issues || [];
+      const indexes = [...new Set(Array.isArray(body.indexes) ? body.indexes : [])];
+      if (!indexes.length) {
+        sendJson(res, 400, { error: "Select at least one finding." });
+        return;
+      }
+      if (indexes.length > 20) {
+        sendJson(res, 400, { error: "Select up to 20 findings at a time." });
+        return;
+      }
+      if (indexes.some((n) => !Number.isInteger(n) || n < 0 || n >= issues.length)) {
+        sendJson(res, 400, { error: "One of the selected findings is not in this report." });
+        return;
+      }
+      try {
+        const payload = await withJiraLock(() =>
+          createJiraTasks(
+            ROOT,
+            runDir,
+            report,
+            indexes.map((index) => ({ index, issue: issues[index] }))
+          )
+        );
+        sendJson(res, 200, payload);
+      } catch (err) {
+        sendJson(res, err.status || 502, {
+          error: err.message || "Could not create Jira tasks.",
+          results: err.results || [],
+        });
+      }
       return;
     }
 
@@ -278,7 +402,7 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "GET" && pathname.startsWith("/artifacts/latest/")) {
+    if (req.method === "GET" && pathname.startsWith("/artifacts/")) {
       const file = artifactFile(pathname);
       if (!file) {
         sendJson(res, 404, { error: "Not found." });
@@ -291,7 +415,7 @@ const server = createServer(async (req, res) => {
         sendJson(res, 404, { error: "Not found." });
         return;
       }
-      if (!info.isFile()) {
+      if (!info.isFile() || !(await insideArtifacts(file))) {
         sendJson(res, 404, { error: "Not found." });
         return;
       }

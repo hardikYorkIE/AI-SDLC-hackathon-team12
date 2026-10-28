@@ -95,16 +95,22 @@ See [`audit_skill_file.md`](./audit_skill_file.md) (aligned to the uploaded skil
 
 ## Artifacts
 
+Each audit is kept in its own folder. The name is the local time plus the site:
+
+`artifacts/2026-10-28_18-12-43_lawsofux.com/`
+
+`artifacts/latest` is a link to the most recent run. Older runs stay on disk. The form lists them under Past reports.
+
 | File | Meaning |
 |---|---|
-| `artifacts/latest/before.png` | Desktop before |
-| `artifacts/latest/after.png` | Desktop after patches |
-| `artifacts/latest/issues.json` | Before findings (skill JSON shape) |
-| `artifacts/latest/issues-after.json` | Remaining findings after patch |
-| `artifacts/latest/patch.css` | Generated remediations |
-| `artifacts/latest/report.html` | Before/after visual report |
-| `artifacts/latest/elements/...` | Per-issue UI element thumbnails (red highlight) |
-| `artifacts/latest/auth-storage.json` | Saved login session (gitignored; cookies only) |
+| `before.png` | Desktop before |
+| `after.png` | Desktop after patches |
+| `issues.json` | Before findings (skill JSON shape) |
+| `issues-after.json` | Remaining findings after patch |
+| `patch.css` | Generated remediations |
+| `report.html` | Before/after visual report |
+| `elements/...` | Per-issue UI element thumbnails (red highlight) |
+| `auth-storage.json` | Saved login session (gitignored; cookies only) |
 
 ## Open source
 

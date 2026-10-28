@@ -70,6 +70,7 @@ web_modules/
 .env.*
 !.env.example
 auth.config.json
+jira.config.json
 **/auth-storage.json
 
 # parcel-bundler cache (https://parceljs.org/)

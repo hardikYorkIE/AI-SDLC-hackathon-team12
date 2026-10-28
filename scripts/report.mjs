@@ -6,6 +6,7 @@
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { fingerprint, readJiraLinks } from "./lib/jira.mjs";
 
 const outDir = path.resolve("artifacts/latest");
 const reportJson = path.join(outDir, "audit-report.json");
@@ -55,8 +56,13 @@ async function main() {
     .map((c) => `<button type="button" class="tab" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`)
     .join("");
 
+  const jiraLinks = await readJiraLinks(outDir);
   const issueCards = issues
     .map((i, idx) => {
+      const filed = jiraLinks[fingerprint(i)];
+      const picker = filed?.key
+        ? `<a class="jira-filed" href="${escapeHtml(filed.url)}" target="_blank" rel="noopener">Jira ${escapeHtml(filed.key)}</a>`
+        : `<label class="pick"><input class="jira-pick" type="checkbox" data-index="${idx}" /> Select</label>`;
       const thumb = i.elementScreenshot
         ? `<figure class="el-shot">
             <img src="./${escapeHtml(i.elementScreenshot)}" alt="Highlighted UI element for issue #${idx + 1}" loading="lazy" />
@@ -64,8 +70,9 @@ async function main() {
           </figure>`
         : `<div class="el-shot missing"><span>No element preview</span></div>`;
       return `
-      <article class="issue" data-category="${escapeHtml(i.category)}" data-severity="${escapeHtml(i.severity)}">
+      <article class="issue" data-category="${escapeHtml(i.category)}" data-severity="${escapeHtml(i.severity)}" data-index="${idx}">
         <header>
+          ${picker}
           <span class="sev ${severityClass(i.severity)}">${escapeHtml(i.severity)}</span>
           <span class="cat">${escapeHtml(i.category)}</span>
           <span class="idx">#${idx + 1}</span>
@@ -233,10 +240,54 @@ async function main() {
     .before-tag { left: 12px; }
     .after-tag { right: 12px; }
     .findings { margin-top: 16px; }
+    .jira-bar, .jira-setup {
+      margin: 0 0 12px;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    .jira-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 12px;
+      z-index: 3;
+    }
+    .jira-setup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; align-items: end; }
+    .jira-setup p { grid-column: 1 / -1; margin: 0; }
+    .jira-setup label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 650; }
+    .jira-setup input {
+      width: 100%;
+      background: #0e1319;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font: inherit;
+    }
+    .pick { display: inline-flex; align-items: center; gap: 8px; min-height: 24px; font-size: 14px; font-weight: 650; cursor: pointer; }
+    .jira-pick, #jiraAll { width: 16px; height: 16px; accent-color: var(--accent); }
+    .jira-bar button, .jira-setup button {
+      border: 0;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font: inherit;
+      font-weight: 750;
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    .jira-bar button:disabled, .jira-setup button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .jira-filed { font-size: 13px; font-weight: 750; white-space: nowrap; }
+    .jira-status { font-size: 14px; }
     [hidden] { display: none !important; }
     @media (max-width: 800px) {
       .issue-body { grid-template-columns: 1fr; }
       .summary { grid-template-columns: 1fr; }
+      .jira-setup { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -263,6 +314,21 @@ async function main() {
     </div>
     <section class="findings">
       <h2>Findings (${issues.length})</h2>
+      <div class="jira-bar" id="jiraBar">
+        <label class="pick"><input type="checkbox" id="jiraAll" /> Select visible</label>
+        <span id="jiraCount" class="muted">0 selected</span>
+        <button type="button" id="jiraCreate" disabled>Create Jira tasks</button>
+        <span id="jiraStatus" class="jira-status muted"></span>
+      </div>
+      <form class="jira-setup" id="jiraSetup" hidden>
+        <p class="muted">Connect the Jira site once. The token stays on this machine.</p>
+        <label>Site <input name="baseUrl" type="url" required placeholder="https://your-site.atlassian.net" /></label>
+        <label>Email <input name="email" type="email" required autocomplete="username" placeholder="you@example.com" /></label>
+        <label>API token <input name="apiToken" type="password" required autocomplete="off" /></label>
+        <label>Project key <input name="projectKey" required placeholder="UX" /></label>
+        <label>Issue type <input name="issueType" value="Task" /></label>
+        <button type="submit">Save Jira connection</button>
+      </form>
       <div class="tabs">
         <button type="button" class="tab-all active" data-cat="__all">All</button>
         ${filterTabs}
@@ -307,6 +373,131 @@ async function main() {
       compare.addEventListener('pointerdown', (e) => { dragging = true; move(e.clientX); compare.setPointerCapture(e.pointerId); });
       compare.addEventListener('pointermove', (e) => { if (dragging) move(e.clientX); });
       compare.addEventListener('pointerup', () => { dragging = false; });
+    }
+
+    const jiraAll = document.getElementById('jiraAll');
+    const jiraCreate = document.getElementById('jiraCreate');
+    const jiraCount = document.getElementById('jiraCount');
+    const jiraStatus = document.getElementById('jiraStatus');
+    const jiraSetup = document.getElementById('jiraSetup');
+    const selectedBoxes = () => [...document.querySelectorAll('.jira-pick')].filter((box) => box.checked && !box.disabled);
+    const updateCount = () => {
+      const n = selectedBoxes().length;
+      jiraCount.textContent = n === 1 ? '1 selected' : n + ' selected';
+      jiraCreate.disabled = n === 0 || jiraCreate.dataset.busy === '1';
+    };
+    const markFiled = (index, key, url) => {
+      const article = document.querySelector('.issue[data-index="' + index + '"]');
+      if (!article) return;
+      const header = article.querySelector('header');
+      const current = header.querySelector('.pick, .jira-filed');
+      const link = document.createElement('a');
+      link.className = 'jira-filed';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Jira ' + key;
+      if (current) current.replaceWith(link);
+      else header.prepend(link);
+    };
+    const applyResults = (rows) => {
+      for (const row of rows || []) markFiled(row.index, row.key, row.url);
+    };
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+      jiraStatus.textContent = 'Open this report from the audit form to create Jira tasks.';
+      jiraCreate.disabled = true;
+      jiraAll.disabled = true;
+    } else {
+      jiraAll.addEventListener('change', () => {
+        document.querySelectorAll('.issue').forEach((el) => {
+          const box = el.querySelector('.jira-pick');
+          if (!box || box.disabled) return;
+          if (el.style.display !== 'none') box.checked = jiraAll.checked;
+        });
+        updateCount();
+      });
+      document.querySelectorAll('.jira-pick').forEach((box) => box.addEventListener('change', updateCount));
+      fetch('/api/jira/status').then((res) => res.json()).then((status) => {
+        if (status.configured) {
+          jiraStatus.textContent = 'Jira ' + status.projectKey + ' on ' + status.site + '. Each selected finding becomes its own task.';
+        } else {
+          jiraSetup.hidden = false;
+          jiraStatus.textContent = 'Connect Jira once, then select findings and create tasks.';
+        }
+      }).catch(() => {
+        jiraStatus.textContent = 'Jira is unavailable from this page.';
+      });
+      jiraSetup.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = jiraSetup.querySelector('button');
+        button.disabled = true;
+        jiraStatus.textContent = 'Checking Jira…';
+        try {
+          const res = await fetch('/api/jira/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              baseUrl: jiraSetup.baseUrl.value.trim(),
+              email: jiraSetup.email.value.trim(),
+              apiToken: jiraSetup.apiToken.value,
+              projectKey: jiraSetup.projectKey.value.trim(),
+              issueType: jiraSetup.issueType.value.trim() || 'Task',
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Could not connect to Jira.');
+          jiraSetup.hidden = true;
+          jiraSetup.reset();
+          jiraStatus.textContent = 'Connected to ' + data.projectKey + ' on ' + data.site + '. Each selected finding becomes its own task.';
+        } catch (err) {
+          jiraStatus.textContent = err.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+      jiraCreate.addEventListener('click', async () => {
+        const boxes = selectedBoxes();
+        if (!boxes.length) return;
+        if (boxes.length > 15 && !window.confirm('Create ' + boxes.length + ' Jira tasks, one per selected finding?')) return;
+        jiraCreate.dataset.busy = '1';
+        jiraCreate.disabled = true;
+        const indexes = boxes.map((box) => Number(box.dataset.index));
+        const created = [];
+        const existing = [];
+        const runMatch = location.pathname.match(/\\/artifacts\\/([^/]+)\\//);
+        const runId = runMatch ? decodeURIComponent(runMatch[1]) : 'latest';
+        try {
+          for (let i = 0; i < indexes.length; i += 20) {
+            const chunk = indexes.slice(i, i + 20);
+            jiraStatus.textContent = 'Creating tasks ' + (i + 1) + '–' + (i + chunk.length) + ' of ' + indexes.length + '…';
+            const res = await fetch('/api/jira/tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ runId, indexes: chunk }),
+            });
+            const data = await res.json();
+            applyResults(data.results);
+            if (!res.ok) throw new Error(data.error || 'Could not create Jira tasks.');
+            for (const row of data.results || []) {
+              if (row.created) created.push(row.key);
+              else existing.push(row.key);
+            }
+          }
+          const parts = [];
+          if (created.length) parts.push('Created ' + created.join(', '));
+          if (existing.length) parts.push('Already in Jira: ' + existing.join(', '));
+          jiraStatus.textContent = parts.join('. ') || 'No tasks created.';
+          jiraAll.checked = false;
+        } catch (err) {
+          const done = [];
+          if (created.length) done.push('Created ' + created.join(', '));
+          if (existing.length) done.push('Already in Jira: ' + existing.join(', '));
+          jiraStatus.textContent = done.length ? done.join('. ') + '. ' + err.message : err.message;
+        } finally {
+          delete jiraCreate.dataset.busy;
+          updateCount();
+        }
+      });
     }
   </script>
 </body>
