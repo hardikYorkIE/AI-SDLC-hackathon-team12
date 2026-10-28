@@ -1,0 +1,9 @@
+{
+  "css": ".panel.spacing-off-7 { margin: 16px; } .panel.spacing-off-15 { margin: 16px; padding: 16px; }",
+  "attributes": [
+    { "selector": "#notify-button", "name": "aria-label", "value": "Notifications" }
+  ],
+  "retags": [
+    { "selector": "#revenue-heading", "tag": "h2" }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "spacing": {
+    "step": 4
+  },
+  "fonts": {
+    "allowedPx": [12, 14, 16, 20, 24, 32]
+  },
+  "gate": {
+    "minScore": 80,
+    "maxCritical": 0
+  },
+  "allowedHosts": ["localhost", "127.0.0.1", "::1"],
+  "axe": {
+    "tags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "maxFindings": 200,
+  "ollama": {
+    "endpoint": "http://127.0.0.1:11434/api/chat",
+    "model": "llava",
+    "timeoutMs": 120000
+  }
+}

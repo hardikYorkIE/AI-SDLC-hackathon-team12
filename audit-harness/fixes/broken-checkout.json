@@ -1,0 +1,12 @@
+{
+  "css": ".checkout-submit { background-color: #1e3a8a; color: #ffffff; } .body-copy { font-size: 16px; }",
+  "inserts": [
+    {
+      "position": "before",
+      "selector": "#card-number",
+      "tag": "label",
+      "text": "Card number",
+      "attrs": { "for": "card-number", "class": "field-label" }
+    }
+  ]
+}

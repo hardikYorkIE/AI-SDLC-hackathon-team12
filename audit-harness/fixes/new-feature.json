@@ -1,0 +1,11 @@
+{
+  "inserts": [
+    {
+      "position": "before",
+      "selector": "#invite-email",
+      "tag": "label",
+      "text": "Work email",
+      "attrs": { "for": "invite-email", "class": "field-label" }
+    }
+  ]
+}

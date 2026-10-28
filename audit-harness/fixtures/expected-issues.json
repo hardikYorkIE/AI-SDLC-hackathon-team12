@@ -1,0 +1,42 @@
+[
+  {
+    "route": "/broken-checkout",
+    "ruleId": "color-contrast",
+    "description": "Pay button text is white on #ff6b6b, below WCAG AA contrast."
+  },
+  {
+    "route": "/broken-checkout",
+    "ruleId": "label",
+    "description": "Card number field has no label."
+  },
+  {
+    "route": "/broken-checkout",
+    "ruleId": "font-scale",
+    "description": "Billing note is 13px, which is not on the type scale."
+  },
+  {
+    "route": "/broken-dashboard",
+    "ruleId": "spacing-grid",
+    "description": "Pipeline panel margin is 7px, off the 4/8 grid."
+  },
+  {
+    "route": "/broken-dashboard",
+    "ruleId": "spacing-grid",
+    "description": "Filters panel margin and padding are 15px, off the 4/8 grid."
+  },
+  {
+    "route": "/broken-dashboard",
+    "ruleId": "button-name",
+    "description": "Notifications control has no accessible name."
+  },
+  {
+    "route": "/broken-dashboard",
+    "ruleId": "multiple-h1",
+    "description": "Dashboard and Revenue this week are both h1 elements."
+  },
+  {
+    "route": "/new-feature",
+    "ruleId": "label",
+    "description": "Invite email field has no label."
+  }
+]

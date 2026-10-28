@@ -1,0 +1,155 @@
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #111827;
+  background: #f4f6f8;
+}
+
+button, input { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 2px solid #1e3a8a;
+  outline-offset: 2px;
+}
+
+::placeholder { color: #374151; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.skip {
+  position: absolute;
+  left: 16px;
+  top: 8px;
+  background: #1e3a8a;
+  color: #ffffff;
+  font-size: 16px;
+  padding: 8px 16px;
+  transform: translateY(-200%);
+  z-index: 10;
+}
+
+.skip:focus { transform: none; }
+
+.topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.shell {
+  width: min(960px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+}
+
+.logo { font-weight: 700; }
+
+nav { display: flex; gap: 16px; }
+
+nav a {
+  color: #1e3a8a;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+nav a[aria-current="page"] { text-decoration: underline; }
+
+main { padding-top: 24px; padding-bottom: 48px; }
+
+h1, h2, h3 { line-height: 1.25; margin: 0 0 8px; }
+h1 { font-size: 32px; }
+h2 { font-size: 24px; }
+h3 { font-size: 20px; }
+
+p { margin: 0 0 16px; }
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.panel.spacing-off-7 { margin: 7px; }
+
+.panel.spacing-off-15 {
+  margin: 15px;
+  padding: 15px;
+}
+
+.title-row, .title-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.secondary-title { margin-top: 8px; }
+
+.field { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+
+.field-label { font-size: 14px; font-weight: 600; }
+
+input[type="text"], input[type="email"], input:not([type]) {
+  width: min(420px, 100%);
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.btn-primary, .checkout-submit {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #1e3a8a;
+  color: #ffffff;
+}
+
+/* Seeded contrast failure: white on #ff6b6b is about 2.8:1. */
+.checkout-submit {
+  background: #ff6b6b;
+  color: #ffffff;
+}
+
+/* Seeded type-scale failure: 13px is not on 12/14/16/20/24/32. */
+.body-copy { font-size: 13px; }
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  border-radius: 8px;
+  color: #111827;
+}

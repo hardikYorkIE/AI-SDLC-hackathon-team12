@@ -1,0 +1,6 @@
+packages:
+  - "demo-app"
+  - "audit-harness"
+
+onlyBuiltDependencies:
+  - esbuild
