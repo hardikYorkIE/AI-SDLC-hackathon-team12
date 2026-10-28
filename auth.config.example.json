@@ -1,0 +1,12 @@
+{
+  "loginUrl": "https://example.com/login",
+  "username": "you@example.com",
+  "password": "REPLACE_ME",
+  "selectors": {
+    "username": "input[type=\"email\"], input[name=\"email\"], input[name=\"username\"], #username",
+    "password": "input[type=\"password\"]",
+    "submit": "button[type=\"submit\"], input[type=\"submit\"]"
+  },
+  "successUrlIncludes": "/dashboard",
+  "waitAfterMs": 1500
+}

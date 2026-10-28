@@ -1,9 +1,11 @@
 /**
  * Shared Playwright ingest helpers for before/after audits.
  */
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { auditSnapshot, axeToIssues, viewportProfile } from "./quality-model.mjs";
+import { auditSnapshot, axeToIssues, viewportProfile, sortIssuesBySeverity } from "./quality-model.mjs";
+// stripInternalFields removed — use buildSkillPayload / toPublicIssue from quality-model
 
 export const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -17,30 +19,21 @@ export function parseArgs(argv, defaults = {}) {
     if (arg.startsWith("--url=")) out.url = arg.slice(6);
     else if (arg.startsWith("--out=")) out.outDir = arg.slice(6);
   }
+  // Auth flags are parsed separately via parseAuthCliFlags / resolveAuth
   return out;
 }
 
-export function stripInternalFields(issues) {
-  return issues.map(({ selector, what_is_wrong, why_it_matters, layman_fix, developer_instruction, css_patch }) => ({
-    selector,
-    what_is_wrong,
-    why_it_matters,
-    layman_fix,
-    developer_instruction,
-    css_patch,
-  }));
-}
-
 export function dedupeIssues(allIssues) {
-  const deduped = [];
-  const keys = new Set();
+  // Prefer desktop screenshots, then any elementScreenshot, when merging viewports.
+  const rank = (i) =>
+    (i.viewport === "desktop" ? 3 : i.viewport === "tablet" ? 2 : 1) + (i.elementScreenshot ? 10 : 0);
+  const byKey = new Map();
   for (const issue of allIssues) {
-    const key = `${issue.selector}|${issue.css_patch?.property}|${issue.what_is_wrong}|${issue.viewport || ""}`;
-    if (keys.has(key)) continue;
-    keys.add(key);
-    deduped.push(issue);
+    const key = `${issue.selector}|${issue.css_patch?.property || ""}|${issue.problem}`;
+    const prev = byKey.get(key);
+    if (!prev || rank(issue) > rank(prev)) byKey.set(key, issue);
   }
-  return deduped;
+  return [...byKey.values()];
 }
 
 export async function extractPageModel(page) {
@@ -170,12 +163,15 @@ export async function extractPageModel(page) {
 }
 
 /**
- * @param {{ browser, url, viewport, absOut, phase: 'before'|'after', patchCss?: string }} opts
+ * @param {{ browser, url, viewport, absOut, phase: 'before'|'after', patchCss?: string, storageState?: string }} opts
  */
 export async function auditViewport(opts) {
-  const { browser, url, viewport, absOut, phase, patchCss } = opts;
+  const { browser, url, viewport, absOut, phase, patchCss, storageState } = opts;
   const profile = viewportProfile(viewport.width);
-  const context = await browser.newContext({ viewport });
+  const context = await browser.newContext({
+    viewport,
+    ...(storageState ? { storageState } : {}),
+  });
   const page = await context.newPage();
 
   try {
@@ -202,6 +198,15 @@ export async function auditViewport(opts) {
     viewport,
   });
   const axeIssues = axeToIssues(axeRaw.violations).map((i) => ({ ...i, viewport: profile.name }));
+  const issues = [...axeIssues, ...layoutIssues];
+
+  // Capture the actual UI element for top findings (highlighted outline).
+  await captureElementScreenshots(page, issues, {
+    absOut,
+    phase,
+    viewportName: profile.name,
+    limit: phase === "before" ? 36 : 16,
+  });
 
   await context.close();
 
@@ -219,6 +224,56 @@ export async function auditViewport(opts) {
         helpUrl: v.helpUrl,
       })),
     },
-    issues: [...axeIssues, ...layoutIssues],
+    issues,
   };
+}
+
+/**
+ * Screenshot each flagged element with a red highlight so the report shows the real UI.
+ */
+async function captureElementScreenshots(page, issues, { absOut, phase, viewportName, limit = 36 }) {
+  const targets = sortIssuesBySeverity(issues)
+    .filter((i) => i.selector && i.selector !== "unknown" && !String(i.selector).includes(" + "))
+    .slice(0, limit);
+
+  const relDir = path.join("elements", phase, viewportName);
+  const absDir = path.join(absOut, relDir);
+  await mkdir(absDir, { recursive: true });
+
+  let idx = 0;
+  for (const issue of targets) {
+    idx += 1;
+    const file = `el-${String(idx).padStart(3, "0")}.png`;
+    const absFile = path.join(absDir, file);
+    try {
+      const loc = page.locator(issue.selector).first();
+      const count = await loc.count();
+      if (!count) continue;
+
+      await loc.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
+      await loc.evaluate((el) => {
+        el.setAttribute("data-audit-highlight", "1");
+        el.style.setProperty("outline", "3px solid #ef4444", "important");
+        el.style.setProperty("outline-offset", "3px", "important");
+        el.style.setProperty("box-shadow", "0 0 0 4px rgba(239,68,68,0.25)", "important");
+      });
+
+      await loc.screenshot({
+        path: absFile,
+        timeout: 4000,
+        animations: "disabled",
+      });
+
+      issue.elementScreenshot = path.join(relDir, file).replaceAll("\\", "/");
+
+      await loc.evaluate((el) => {
+        el.style.removeProperty("outline");
+        el.style.removeProperty("outline-offset");
+        el.style.removeProperty("box-shadow");
+        el.removeAttribute("data-audit-highlight");
+      }).catch(() => {});
+    } catch {
+      // Invalid selector / detached node — skip thumbnail
+    }
+  }
 }

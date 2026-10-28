@@ -24,8 +24,12 @@ function run(cmd, args) {
 }
 
 async function main() {
-  const { url, threshold } = parseArgs(process.argv.slice(2));
-  await run("node", ["scripts/audit.mjs", `--url=${url}`]);
+  const argv = process.argv.slice(2);
+  const { url, threshold } = parseArgs(argv);
+  // Forward auth + url flags (drop --threshold which audit.mjs ignores harmlessly if present)
+  const forward = argv.filter((a) => !a.startsWith("--threshold="));
+  if (!forward.some((a) => a.startsWith("--url="))) forward.unshift(`--url=${url}`);
+  await run("node", ["scripts/audit.mjs", ...forward]);
 
   const report = JSON.parse(await readFile(path.resolve("artifacts/latest/audit-report.json"), "utf8"));
   console.log(`\n🚧 Gate threshold: ${threshold}`);

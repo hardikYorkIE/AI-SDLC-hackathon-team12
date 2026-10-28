@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * Runs before audit → remediate → after audit with the same CLI args.
- * Usage: npm run audit:full -- --url=http://127.0.0.1:8765
+ * Usage:
+ *   npm run audit:full -- --url=http://127.0.0.1:8765
+ *   npm run audit:full -- --url=<APP> --login-url=<LOGIN> --user=... --password=...
  */
 import { spawn } from "node:child_process";
 

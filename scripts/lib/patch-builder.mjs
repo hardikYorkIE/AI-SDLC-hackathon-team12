@@ -1,148 +1,92 @@
 /**
- * Build injectible CSS from audit_skill_file.md issues[].css_patch
+ * Build injectible CSS from skill issues (css_patch or parse fixInstruction).
  */
 
 const ALLOWED_CSS_PROPS = new Set([
-  "color",
-  "background-color",
-  "background",
-  "opacity",
-  "font-size",
-  "font-family",
-  "font-weight",
-  "line-height",
-  "min-height",
-  "min-width",
-  "height",
-  "width",
-  "padding",
-  "padding-top",
-  "padding-right",
-  "padding-bottom",
-  "padding-left",
-  "margin",
-  "margin-top",
-  "margin-right",
-  "margin-bottom",
-  "margin-left",
-  "gap",
-  "row-gap",
-  "column-gap",
-  "border-radius",
-  "text-decoration",
-  "text-decoration-line",
-  "overflow-x",
-  "overflow",
-  "outline",
-  "letter-spacing",
-  "max-width",
+  "color", "background-color", "background", "opacity",
+  "font-size", "font-family", "font-weight", "line-height",
+  "min-height", "min-width", "height", "width",
+  "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+  "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+  "gap", "row-gap", "column-gap", "border-radius",
+  "text-decoration", "text-decoration-line", "overflow-x", "overflow",
+  "outline", "letter-spacing", "max-width",
 ]);
 
-const PRIORITY_RULES = [
-  "wcag-contrast",
-  "touch-target",
-  "body-type-size",
-  "type-hierarchy",
-  "line-height",
-  "spacing-scale",
-  "target-proximity",
-  "link-affordance",
-  "mobile-overflow",
-  "brand-font",
-  "shape-language",
-];
+function extractCssPatch(issue) {
+  if (issue?.css_patch?.property && issue?.css_patch?.value != null) {
+    return { property: String(issue.css_patch.property).toLowerCase(), value: String(issue.css_patch.value) };
+  }
+  const text = String(issue?.fixInstruction || "");
+  const m = text.match(/Apply CSS:\s*([a-z-]+)\s*:\s*([^;]+);/i);
+  if (m) return { property: m[1].toLowerCase(), value: m[2].trim() };
+  const m2 = text.match(/\b([a-z-]+)\s*:\s*([^;]{1,40});/i);
+  if (m2 && ALLOWED_CSS_PROPS.has(m2[1].toLowerCase())) {
+    return { property: m2[1].toLowerCase(), value: m2[2].trim() };
+  }
+  return null;
+}
 
-function isInjectableCss(issue) {
-  const prop = issue?.css_patch?.property;
-  const value = issue?.css_patch?.value;
-  if (!prop || value == null) return false;
-  const p = String(prop).toLowerCase();
-  if (!ALLOWED_CSS_PROPS.has(p)) return false;
-  const v = String(value);
-  if (v.includes("/*") || v.includes("add visible label")) return false;
-  if (p === "outline" && v.includes("#10b981")) return false; // weak axe placeholder
+function isInjectable(issue, patch) {
+  if (!patch) return false;
+  if (!ALLOWED_CSS_PROPS.has(patch.property)) return false;
+  if (patch.value.includes("/*") || patch.value.includes("Describe this")) return false;
+  if (patch.property === "outline") return false;
+  if (patch.property === "aria-label" || patch.property === "alt") return false;
   return true;
 }
 
-function rulePriority(issue) {
-  const rule = String(issue.rule || "");
-  if (rule.startsWith("axe:color-contrast")) return 0;
-  if (rule.startsWith("axe:")) return 40;
-  const idx = PRIORITY_RULES.indexOf(rule);
-  return idx === -1 ? 30 : idx + 1;
+function severityRank(s) {
+  return { Critical: 0, High: 1, Medium: 2, Low: 3 }[s] ?? 5;
 }
 
 function sanitizeSelector(selector) {
   if (!selector || selector === "unknown") return null;
-  // Multi-target proximity "a + b" is not a valid single selector for patching
-  if (selector.includes(" + ") && !selector.includes("+")) return null;
-  if (selector.includes(" + ") && selector.split(" + ").length === 2 && !selector.includes(">")) {
-    // proximity pseudo-pairs — skip
-    if (!selector.includes(":") && selector.split(" + ").every((s) => s.includes("."))) {
-      // still might be valid adjacent sibling; allow
-    }
-  }
-  // Drop selectors that are clearly broken
   if (selector.length > 400) return null;
   return selector.trim();
 }
 
-/**
- * Convert issues JSON into CSS text + metadata.
- * @param {Array} issues
- * @param {{ maxRules?: number }} options
- */
 export function buildPatchFromIssues(issues, options = {}) {
   const maxRules = options.maxRules ?? 80;
-  const candidates = (issues || [])
-    .filter(isInjectableCss)
-    .map((issue) => ({
-      ...issue,
-      selector: sanitizeSelector(issue.selector),
-    }))
-    .filter((issue) => issue.selector)
-    .sort((a, b) => rulePriority(a) - rulePriority(b));
+  const enriched = (issues || [])
+    .map((issue) => ({ issue, patch: extractCssPatch(issue) }))
+    .filter(({ issue, patch }) => isInjectable(issue, patch) && sanitizeSelector(issue.selector))
+    .sort((a, b) => severityRank(a.issue.severity) - severityRank(b.issue.severity));
 
   const seen = new Set();
   const applied = [];
   const lines = [
-    "/* Auto-generated from audit_skill_file.md issues[].css_patch */",
-    "/* Do not edit by hand — regenerate with: npm run remediate */",
+    "/* Auto-generated from audit_skill_file.md issues */",
+    "/* Regenerate: npm run remediate */",
     "",
   ];
 
-  for (const issue of candidates) {
-    const prop = String(issue.css_patch.property).toLowerCase();
-    const value = String(issue.css_patch.value);
-    const key = `${issue.selector}|${prop}`;
+  for (const { issue, patch } of enriched) {
+    const selector = sanitizeSelector(issue.selector);
+    const key = `${selector}|${patch.property}`;
     if (seen.has(key)) continue;
     seen.add(key);
 
-    // Escape nothing exotic — Playwright/browser will ignore invalid rules;
-    // wrap each rule so one bad selector doesn't kill the sheet in some engines.
-    lines.push(`/* ${String(issue.what_is_wrong || "").slice(0, 100).replace(/\*\//g, "* /")} */`);
-    lines.push(`${issue.selector} { ${prop}: ${value} !important; }`);
+    lines.push(`/* [${issue.severity}] ${String(issue.problem || "").slice(0, 100).replace(/\*\//g, "* /")} */`);
+    lines.push(`${selector} { ${patch.property}: ${patch.value} !important; }`);
     lines.push("");
 
     applied.push({
-      selector: issue.selector,
-      property: prop,
-      value,
-      what_is_wrong: issue.what_is_wrong,
-      rule: issue.rule || null,
+      selector,
+      property: patch.property,
+      value: patch.value,
+      severity: issue.severity,
+      category: issue.category,
+      problem: issue.problem,
     });
-
     if (applied.length >= maxRules) break;
   }
 
-  // Global safety-net remediations from audit_skill_file.md brand/tokens
-  lines.push("/* Global skill-file safety nets */");
-  lines.push(`body { font-family: Inter, system-ui, sans-serif !important; }`);
+  lines.push("/* Universal safety nets (any site) */");
   lines.push(`p, li { line-height: 1.5 !important; }`);
-  lines.push(`button, .nav-btn, .icon-btn, a.button, [role="button"] { min-height: 32px !important; min-width: 32px !important; }`);
-  lines.push(`@media (max-width: 1024px) { button, .nav-btn, .icon-btn, a.button, [role="button"] { min-height: 48px !important; min-width: 48px !important; } }`);
-  lines.push(`a { text-decoration: underline !important; text-underline-offset: 2px; }`);
-  lines.push(`a.nav-btn, a.ghost, button a, .chip, .tab, .open-btn { text-decoration: none !important; }`);
+  lines.push(`button, [role="button"], input[type="button"], input[type="submit"] { min-height: 24px !important; min-width: 24px !important; }`);
+  lines.push(`@media (max-width: 1024px) { button, [role="button"], input[type="button"], input[type="submit"] { min-height: 48px !important; min-width: 48px !important; } }`);
+  lines.push(`p a, li a, article a { text-decoration: underline !important; text-underline-offset: 2px; }`);
   lines.push("");
 
   return {
