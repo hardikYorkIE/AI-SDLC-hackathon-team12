@@ -31,9 +31,11 @@ async function main() {
   const argv = process.argv.slice(2);
   const { url, outDir } = parseArgs(argv);
   const authCli = parseAuthCliFlags(argv, { targetUrl: url });
-  // Prefer saved session from before-audit when present
+  // Reuse the session just saved by the before-audit. A form run with no
+  // credentials (--auth-inline) must not pick up a previous site's cookies.
   const priorState = path.resolve(outDir, "auth-storage.json");
-  if (!authCli.storageState && (await exists(priorState))) {
+  const inlineWithoutCreds = authCli.authInline && !(authCli.user && authCli.password);
+  if (!authCli.noAuth && !authCli.storageState && !inlineWithoutCreds && (await exists(priorState))) {
     authCli.storageState = priorState;
   }
   const auth = await resolveAuth(authCli, { rootDir: ROOT });

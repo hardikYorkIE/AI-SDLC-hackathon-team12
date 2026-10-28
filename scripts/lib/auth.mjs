@@ -69,19 +69,31 @@ function pick(obj, ...keys) {
  * }>}
  */
 export async function resolveAuth(cli = {}, { rootDir = process.cwd() } = {}) {
-  const fileEnv = await loadDotEnv(rootDir);
-  const env = { ...fileEnv, ...process.env };
+  if (cli.noAuth) {
+    return {
+      enabled: false,
+      selectors: { ...DEFAULT_SELECTORS },
+      waitAfterMs: 1500,
+    };
+  }
+
+  // UI runs pass only the form values. Ignore .env and auth.config.json.
+  const fileEnv = cli.authInline ? {} : await loadDotEnv(rootDir);
+  const env = cli.authInline ? {} : { ...fileEnv, ...process.env };
 
   let fileCfg = {};
-  const authConfigPath =
-    cli.authConfig ||
-    pick(env, "AUDIT_AUTH_CONFIG") ||
-    (await exists(path.join(rootDir, "auth.config.json"))
-      ? path.join(rootDir, "auth.config.json")
-      : undefined);
+  let authConfigPath;
+  if (!cli.authInline) {
+    authConfigPath =
+      cli.authConfig ||
+      pick(env, "AUDIT_AUTH_CONFIG") ||
+      (await exists(path.join(rootDir, "auth.config.json"))
+        ? path.join(rootDir, "auth.config.json")
+        : undefined);
 
-  if (authConfigPath && (await exists(path.resolve(authConfigPath)))) {
-    fileCfg = JSON.parse(await readFile(path.resolve(authConfigPath), "utf8"));
+    if (authConfigPath && (await exists(path.resolve(authConfigPath)))) {
+      fileCfg = JSON.parse(await readFile(path.resolve(authConfigPath), "utf8"));
+    }
   }
 
   const selectors = {
@@ -160,6 +172,8 @@ export function parseAuthCliFlags(argv, base = {}) {
     else if (arg.startsWith("--auth-submit-selector=")) out.submitSelector = arg.slice(23);
     else if (arg.startsWith("--auth-success-url=")) out.successUrlIncludes = arg.slice(19);
     else if (arg.startsWith("--auth-wait-ms=")) out.waitAfterMs = arg.slice(15);
+    else if (arg === "--no-auth") out.noAuth = true;
+    else if (arg === "--auth-inline") out.authInline = true;
   }
   return out;
 }

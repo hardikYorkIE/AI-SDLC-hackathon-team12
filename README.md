@@ -13,6 +13,18 @@ npm install
 npx playwright install chromium
 ```
 
+## Audit from the browser
+
+```bash
+npm run ui
+```
+
+Open [http://127.0.0.1:8787](http://127.0.0.1:8787). Enter a page URL. If that page requires a login, check the login box and enter the username and password. When the run finishes, use **Open report** on the same page.
+
+Direct report link: [http://127.0.0.1:8787/report](http://127.0.0.1:8787/report)
+
+The form uses only the URL and credentials you type. It does not pick up `.env` or `auth.config.json`.
+
 ## Audit any site
 
 ```bash

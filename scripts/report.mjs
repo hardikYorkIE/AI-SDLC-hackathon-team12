@@ -136,62 +136,115 @@ async function main() {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>UI/UX Audit Report</title>
   <style>
-    :root { --bg:#f8fafc; --card:#fff; --fg:#0f172a; --muted:#64748b; --line:#e2e8f0; }
-    body { margin:0; font-family: Inter, system-ui, sans-serif; background:var(--bg); color:var(--fg); }
-    main { max-width:1100px; margin:0 auto; padding:32px 20px 64px; }
-    h1 { margin:0 0 8px; font-size:28px; }
-    .muted { color:var(--muted); }
-    .summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:20px 0; }
-    .summary .card { padding:14px; }
-    .summary strong { font-size:22px; display:block; margin-top:4px; }
-    .compare-scores { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:16px 0 24px; }
-    .score-card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; }
-    .score-card strong { font-size:36px; }
-    .score-card .label { display:block; font-size:12px; color:var(--muted); }
-    .arrow { font-size:28px; color:var(--muted); }
-    .delta { font-weight:700; padding:8px 12px; border-radius:8px; background:#ecfdf5; color:#065f46; }
-    .delta.down { background:#fef2f2; color:#991b1b; }
-    .grid { display:grid; gap:16px; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
-    .card.span { grid-column:1/-1; }
-    img { width:100%; border-radius:10px; border:1px solid var(--line); display:block; }
-    table { width:100%; border-collapse:collapse; font-size:13px; }
-    th,td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
-    th { color:var(--muted); }
-    .tabs { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
-    .tab, .tab-all { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 12px; cursor:pointer; font-size:13px; }
-    .tab.active, .tab-all.active { background:#0f172a; color:#fff; border-color:#0f172a; }
-    .issue { border:1px solid var(--line); border-radius:12px; padding:14px; margin:12px 0; background:#fff; }
-    .issue header { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
-    .issue-body { display:grid; grid-template-columns: 220px 1fr; gap:16px; align-items:start; }
-    .el-shot { margin:0; background:#0f172a; border-radius:10px; overflow:hidden; border:1px solid var(--line); }
-    .el-shot img { width:100%; display:block; border:0; border-radius:0; background:#fff; max-height:180px; object-fit:contain; }
-    .el-shot figcaption { font-size:11px; color:#cbd5e1; padding:6px 8px; text-align:center; }
-    .el-shot.missing { min-height:120px; display:grid; place-items:center; color:#94a3b8; font-size:12px; background:#f8fafc; }
-    .sev { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
-    .sev.critical { background:#fee2e2; color:#991b1b; }
-    .sev.high { background:#ffedd5; color:#9a3412; }
-    .sev.medium { background:#fef9c3; color:#854d0e; }
-    .sev.low { background:#e2e8f0; color:#334155; }
-    .cat { font-size:12px; color:var(--muted); }
-    .idx { margin-left:auto; font-size:12px; color:var(--muted); }
-    code { display:inline-block; font-size:12px; background:#f1f5f9; padding:2px 6px; border-radius:6px; margin-bottom:8px; word-break:break-all; }
-    @media (max-width:800px){ .issue-body{ grid-template-columns:1fr; } }
-    .compare-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
-    .compare { position:relative; overflow:hidden; border-radius:12px; border:1px solid var(--line); user-select:none; }
-    .compare img { border:0; border-radius:0; }
-    .before-clip { position:absolute; inset:0 auto 0 0; width:50%; overflow:hidden; border-right:2px solid #fff; }
-    .before-img { width:var(--compare-width,1100px); max-width:none; }
-    .handle { position:absolute; top:0; bottom:0; left:50%; width:2px; background:#fff; box-shadow:0 0 0 1px rgb(15 23 42/.3); }
-    .tag { position:absolute; top:12px; z-index:2; background:rgb(15 23 42/.75); color:#fff; font-size:12px; font-weight:700; padding:4px 8px; border-radius:6px; }
-    .before-tag { left:12px; } .after-tag { right:12px; }
-    @media (max-width:800px){ .summary{grid-template-columns:1fr;} }
+    :root {
+      --bg: #10141a;
+      --card: #1a212b;
+      --line: #2c3644;
+      --text: #eef3f8;
+      --muted: #9aa8b8;
+      --accent: #3dd6c6;
+      --accent-ink: #06221e;
+      --danger: #ff8b8b;
+      --danger-bg: #3a1c22;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 420px at 10% -10%, rgba(61, 214, 198, 0.16), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font: 16px/1.45 ui-sans-serif, system-ui, sans-serif;
+    }
+    main { width: min(1100px, calc(100% - 32px)); margin: 48px auto 64px; }
+    h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -0.03em; }
+    h2 { margin: 0 0 8px; font-size: 18px; }
+    a { color: var(--accent); }
+    .lede { margin: 0 0 24px; color: var(--muted); }
+    .home {
+      display: inline-block;
+      margin: 0 0 20px;
+      color: var(--accent-ink);
+      background: var(--accent);
+      text-decoration: none;
+      font-weight: 750;
+      border-radius: 999px;
+      padding: 10px 16px;
+    }
+    .muted { color: var(--muted); }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 0 0 16px; }
+    .summary strong { font-size: 22px; display: block; margin-top: 6px; }
+    .compare-scores { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 0 0 16px; }
+    .score-card, .card, .issue {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .score-card strong { font-size: 36px; letter-spacing: -0.03em; }
+    .score-card .label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .arrow { font-size: 28px; color: var(--muted); }
+    .delta { font-weight: 750; padding: 10px 14px; border-radius: 999px; background: #102824; color: var(--accent); }
+    .delta.down { background: var(--danger-bg); color: var(--danger); }
+    .grid { display: grid; gap: 16px; }
+    .card.span { grid-column: 1 / -1; }
+    img { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; background: #0e1319; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 650; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .tab, .tab-all {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .tab.active, .tab-all.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .issue { margin: 12px 0; }
+    .issue header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .issue-body { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; }
+    .el-shot { margin: 0; background: #0e1319; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+    .el-shot img { width: 100%; display: block; border: 0; border-radius: 0; background: #0e1319; max-height: 180px; object-fit: contain; }
+    .el-shot figcaption { font-size: 12px; color: var(--muted); padding: 6px 8px; text-align: center; }
+    .el-shot.missing { min-height: 120px; display: grid; place-items: center; color: var(--muted); font-size: 13px; background: #0e1319; }
+    .sev { font-size: 12px; font-weight: 750; padding: 4px 10px; border-radius: 999px; }
+    .sev.critical { background: var(--danger-bg); color: var(--danger); }
+    .sev.high { background: #3a2a14; color: #ffc48a; }
+    .sev.medium { background: #3a3414; color: #f6e08b; }
+    .sev.low { background: #243040; color: #c5d0dc; }
+    .cat, .idx { font-size: 13px; color: var(--muted); }
+    .idx { margin-left: auto; }
+    code { display: inline-block; font-size: 12px; background: #0e1319; color: var(--text); border: 1px solid var(--line); padding: 4px 8px; border-radius: 8px; margin-bottom: 8px; word-break: break-all; }
+    input[type="range"] { accent-color: var(--accent); }
+    .compare-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .slider-label { color: var(--muted); font-size: 14px; font-weight: 650; }
+    .compare { position: relative; overflow: hidden; border-radius: 12px; border: 1px solid var(--line); user-select: none; }
+    .compare img { border: 0; border-radius: 0; }
+    .before-clip { position: absolute; inset: 0 auto 0 0; width: 50%; overflow: hidden; border-right: 2px solid var(--accent); }
+    .before-img { width: var(--compare-width, 1100px); max-width: none; }
+    .handle { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--accent); }
+    .tag { position: absolute; top: 12px; z-index: 2; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 750; padding: 4px 8px; border-radius: 999px; }
+    .before-tag { left: 12px; }
+    .after-tag { right: 12px; }
+    .findings { margin-top: 16px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 800px) {
+      .issue-body { grid-template-columns: 1fr; }
+      .summary { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <main>
+    <a class="home" id="home" href="/" hidden>Back to audit</a>
     <h1>UI/UX Audit Report</h1>
-    <p class="muted">Skill: <strong>audit_skill_file.md</strong> · ${escapeHtml(report.url)} · ${escapeHtml(report.timestamp)}</p>
+    <p class="lede">Skill: audit_skill_file.md · ${escapeHtml(report.url)} · ${escapeHtml(report.timestamp)}</p>
     <div class="summary">
       <div class="card"><span class="muted">Overall health</span><strong>${escapeHtml(summary.overallHealth || "—")}</strong></div>
       <div class="card"><span class="muted">Critical fires</span><strong>${escapeHtml(summary.criticalFires ?? "—")}</strong></div>
@@ -208,7 +261,7 @@ async function main() {
         </table>
       </section>
     </div>
-    <section style="margin-top:20px">
+    <section class="findings">
       <h2>Findings (${issues.length})</h2>
       <div class="tabs">
         <button type="button" class="tab-all active" data-cat="__all">All</button>
@@ -218,6 +271,9 @@ async function main() {
     </section>
   </main>
   <script>
+    if (location.protocol === "http:" || location.protocol === "https:") {
+      document.getElementById("home").hidden = false;
+    }
     document.querySelectorAll('.tab, .tab-all').forEach((btn) => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab, .tab-all').forEach((b) => b.classList.remove('active'));
@@ -260,6 +316,10 @@ async function main() {
   const htmlPath = path.join(outDir, "report.html");
   await writeFile(htmlPath, html);
   console.log(`\n📄 Report written: ${htmlPath}`);
+  if (process.env.AUDIT_NO_OPEN === "1") {
+    console.log("Report left closed (AUDIT_NO_OPEN=1).\n");
+    return;
+  }
   const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
   spawn(openCmd, [htmlPath], { stdio: "ignore", detached: true }).unref();
   console.log("Opened in browser.\n");

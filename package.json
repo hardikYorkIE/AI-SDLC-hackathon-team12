@@ -11,7 +11,8 @@
     "audit-after": "node scripts/audit-after.mjs",
     "audit:full": "node scripts/audit-full.mjs",
     "report": "node scripts/report.mjs",
-    "audit-gate": "node scripts/audit-gate.mjs"
+    "audit-gate": "node scripts/audit-gate.mjs",
+    "ui": "node scripts/ui-server.mjs"
   },
   "engines": {
     "node": ">=18"

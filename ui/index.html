@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Audit a page</title>
+  <style>
+    :root {
+      --bg: #10141a;
+      --card: #1a212b;
+      --line: #2c3644;
+      --text: #eef3f8;
+      --muted: #9aa8b8;
+      --accent: #3dd6c6;
+      --accent-ink: #06221e;
+      --danger: #ff8b8b;
+      --danger-bg: #3a1c22;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 420px at 10% -10%, rgba(61, 214, 198, 0.16), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font: 16px/1.45 ui-sans-serif, system-ui, sans-serif;
+    }
+    main {
+      width: min(680px, calc(100% - 32px));
+      margin: 48px auto 64px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      letter-spacing: -0.03em;
+    }
+    .lede {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
+    form, .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    input[type="url"],
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0e1319;
+      color: var(--text);
+      font: inherit;
+    }
+    input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      font-weight: 650;
+    }
+    .check input { width: 18px; height: 18px; }
+    .hint { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    button {
+      margin-top: 18px;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: progress; }
+    .panel { margin-top: 16px; }
+    .panel h2 { margin: 0 0 8px; font-size: 18px; }
+    #log {
+      max-height: 220px;
+      overflow: auto;
+      margin: 12px 0 0;
+      padding: 12px;
+      border-radius: 10px;
+      background: #0e1319;
+      color: #c5d0dc;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+    .report-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--accent-ink);
+      background: var(--accent);
+      text-decoration: none;
+      font-weight: 750;
+      border-radius: 999px;
+      padding: 12px 18px;
+    }
+    .report-url {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .error {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Audit a page</h1>
+    <p class="lede">Enter a URL. If the page requires a login, add the username and password. When the run finishes, open the report from the link below.</p>
+
+    <form id="audit-form">
+      <label for="url">Page URL</label>
+      <input id="url" name="url" type="url" required placeholder="https://example.com" autocomplete="url" />
+
+      <label class="check" for="needs-auth">
+        <input id="needs-auth" type="checkbox" />
+        This page requires a login
+      </label>
+
+      <div id="auth-fields" hidden>
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" autocomplete="username" />
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" />
+        <p class="hint">Used only to sign in on this URL for this audit. The password is not written into the report.</p>
+      </div>
+
+      <button id="submit" type="submit">Generate report</button>
+    </form>
+
+    <p id="form-error" class="error" hidden></p>
+
+    <section id="progress" class="panel" hidden>
+      <h2 id="status-text">Working…</h2>
+      <p class="hint">Mobile, tablet, and desktop are checked, then a before/after report is written. This usually takes a few minutes.</p>
+      <pre id="log"></pre>
+    </section>
+
+    <section id="result" class="panel" hidden>
+      <h2>Report</h2>
+      <a id="report-link" class="report-link" href="/report" target="_blank" rel="noopener">Open report</a>
+      <p id="report-url" class="report-url"></p>
+    </section>
+  </main>
+  <script>
+    const form = document.getElementById("audit-form");
+    const needsAuth = document.getElementById("needs-auth");
+    const authFields = document.getElementById("auth-fields");
+    const submit = document.getElementById("submit");
+    const formError = document.getElementById("form-error");
+    const progress = document.getElementById("progress");
+    const statusText = document.getElementById("status-text");
+    const logEl = document.getElementById("log");
+    const result = document.getElementById("result");
+    const reportUrl = document.getElementById("report-url");
+
+    const phaseLabel = {
+      starting: "Starting audit…",
+      audit: "Auditing the page…",
+      remediate: "Applying fixes…",
+      "audit-after": "Re-auditing after fixes…",
+      report: "Writing the report…",
+      done: "Report ready.",
+      error: "Audit failed.",
+      idle: "Idle",
+    };
+
+    needsAuth.addEventListener("change", () => {
+      authFields.hidden = !needsAuth.checked;
+      document.getElementById("username").required = needsAuth.checked;
+      document.getElementById("password").required = needsAuth.checked;
+    });
+
+    function showError(message) {
+      formError.hidden = !message;
+      formError.textContent = message || "";
+    }
+
+    function absoluteReport() {
+      return new URL("/report", window.location.origin).href;
+    }
+
+    function showReport() {
+      result.hidden = false;
+      reportUrl.textContent = absoluteReport();
+    }
+
+    async function refresh() {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      const busy = Boolean(data.running);
+      submit.disabled = busy;
+      submit.textContent = busy ? "Generating report…" : "Generate report";
+      if (busy || data.log || data.error) {
+        progress.hidden = false;
+        statusText.textContent = phaseLabel[data.phase] || data.phase;
+        logEl.textContent = data.log || "";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      if (data.error && !busy) showError(data.error);
+      if (data.reportUrl && !busy) showReport();
+      return busy;
+    }
+
+    let timer = 0;
+    function poll() {
+      clearInterval(timer);
+      timer = setInterval(async () => {
+        const busy = await refresh();
+        if (!busy) clearInterval(timer);
+      }, 1000);
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showError("");
+      const url = document.getElementById("url").value.trim();
+      const username = needsAuth.checked ? document.getElementById("username").value.trim() : "";
+      const password = needsAuth.checked ? document.getElementById("password").value : "";
+      submit.disabled = true;
+      try {
+        const res = await fetch("/api/audit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, username, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showError(data.error || "Could not start the audit.");
+          submit.disabled = false;
+          return;
+        }
+        progress.hidden = false;
+        statusText.textContent = "Starting audit…";
+        result.hidden = true;
+        poll();
+      } catch (err) {
+        showError(err.message || "Could not reach the audit server.");
+        submit.disabled = false;
+      }
+    });
+
+    refresh().then((busy) => {
+      if (busy) poll();
+    });
+  </script>
+</body>
+</html>
